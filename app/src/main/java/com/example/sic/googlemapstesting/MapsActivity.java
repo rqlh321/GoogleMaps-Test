@@ -3,6 +3,7 @@ package com.example.sic.googlemapstesting;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
+import android.widget.Toast;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -14,6 +15,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.clustering.Cluster;
 import com.google.maps.android.clustering.ClusterManager;
 
 import org.geojson.Feature;
@@ -76,7 +78,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         setUpClusterer();
-
+        mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
         String geoJsonString =
                 " { \"type\": \"FeatureCollection\",\n" +
                         "    \"features\": [\n" +
@@ -129,6 +131,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
             @Override
             public void onPolygonClick(com.google.android.gms.maps.model.Polygon polygon) {
+                mMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
                 polygon.setFillColor(Color.argb(100, 255, 10, 10));
             }
         });
@@ -142,6 +145,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // (Activity extends context, so we can pass 'this' in the constructor.)
         mClusterManager = new ClusterManager<>(this, mMap);
         mClusterManager.setRenderer(new OwnIconRendered(this, mMap, mClusterManager));
+        mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<MyPoint>() {
+            @Override
+            public boolean onClusterItemClick(MyPoint myPoint) {
+                Toast.makeText(MapsActivity.this, myPoint.getMessage(), Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        });
+        mClusterManager.setOnClusterClickListener(new ClusterManager.OnClusterClickListener<MyPoint>() {
+            @Override
+            public boolean onClusterClick(Cluster<MyPoint> cluster) {
+                String messages = "";
+                for (MyPoint myPoint : cluster.getItems()) {
+                    messages += myPoint.getMessage() + "\n";
+                }
+                Toast.makeText(MapsActivity.this, messages, Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        });
         // Point the map's listeners at the listeners implemented by the cluster
         // manager.
         mMap.setOnCameraIdleListener(mClusterManager);
@@ -162,7 +183,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             double offset = i / 60d;
             lat = lat + offset;
             lng = lng + offset;
-            MyPoint offsetItem = new MyPoint(lat, lng);
+            MyPoint offsetItem = new MyPoint(lat, lng, String.valueOf(offset));
             mClusterManager.addItem(offsetItem);
         }
     }

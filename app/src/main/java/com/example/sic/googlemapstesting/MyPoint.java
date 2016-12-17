@@ -5,9 +5,15 @@ import com.google.maps.android.clustering.ClusterItem;
 
 public class MyPoint implements ClusterItem {
     private final LatLng mPosition;
+    private final String message;
 
-    public MyPoint(double lat, double lng) {
+    public MyPoint(double lat, double lng, String messageInMarker) {
         mPosition = new LatLng(lat, lng);
+        message = messageInMarker;
+    }
+
+    public String getMessage() {
+        return message;
     }
 
     @Override
