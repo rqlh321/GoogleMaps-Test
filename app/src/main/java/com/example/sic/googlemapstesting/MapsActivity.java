@@ -1,16 +1,20 @@
 package com.example.sic.googlemapstesting;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.clustering.ClusterManager;
 
 import org.geojson.Feature;
 import org.geojson.FeatureCollection;
@@ -24,13 +28,18 @@ import java.io.IOException;
 import java.util.List;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
-
+    // Declare a variable for the cluster manager.
+    ClusterManager<MyPoint> mClusterManager;
     private GoogleMap mMap;
 
     public static void handleGeometry(GeoJsonObject object, GoogleMap mMap) {
         if (object instanceof Polygon) {
             List<LngLatAlt> polygonCoordinates = ((Polygon) object).getExteriorRing();
             PolygonOptions polygonOptions = new PolygonOptions();
+            polygonOptions.strokeWidth(3);
+            polygonOptions.strokeColor(Color.argb(100, 255, 10, 10));
+            polygonOptions.fillColor(Color.argb(40, 255, 10, 10));
+            polygonOptions.clickable(true);
             for (LngLatAlt coordinate : polygonCoordinates) {
                 polygonOptions.add(new LatLng(coordinate.getLatitude(), coordinate.getLongitude()));
             }
@@ -38,6 +47,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if (object instanceof LineString) {
             List<LngLatAlt> lineCoordinates = ((LineString) object).getCoordinates();
             PolylineOptions polyLineOptions = new PolylineOptions();
+            polyLineOptions.width(2);
+            polyLineOptions.color(Color.argb(100, 255, 0, 10));
             for (LngLatAlt coordinate : lineCoordinates) {
                 polyLineOptions.add(new LatLng(coordinate.getLatitude(), coordinate.getLongitude()));
             }
@@ -45,6 +56,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if (object instanceof Point) {
             LngLatAlt pointCoordinates = ((Point) object).getCoordinates();
             MarkerOptions markerOptions = new MarkerOptions();
+            markerOptions.icon(BitmapDescriptorFactory.fromResource(R.mipmap.ic_launcher));
             markerOptions.position(new LatLng(pointCoordinates.getLatitude(), pointCoordinates.getLongitude()));
             mMap.addMarker(markerOptions);
         }
@@ -63,6 +75,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        setUpClusterer();
 
         String geoJsonString =
                 " { \"type\": \"FeatureCollection\",\n" +
@@ -112,6 +125,45 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
+            @Override
+            public void onPolygonClick(com.google.android.gms.maps.model.Polygon polygon) {
+                polygon.setFillColor(Color.argb(100, 255, 10, 10));
+            }
+        });
+    }
+
+    private void setUpClusterer() {
+        // Position the map.
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(51.503186, -0.126446), 10));
+
+        // Initialize the manager with the context and the map.
+        // (Activity extends context, so we can pass 'this' in the constructor.)
+        mClusterManager = new ClusterManager<>(this, mMap);
+        mClusterManager.setRenderer(new OwnIconRendered(this, mMap, mClusterManager));
+        // Point the map's listeners at the listeners implemented by the cluster
+        // manager.
+        mMap.setOnCameraIdleListener(mClusterManager);
+        mMap.setOnMarkerClickListener(mClusterManager);
+
+        // Add cluster items (markers) to the cluster manager.
+        addItems();
+    }
+
+    private void addItems() {
+
+        // Set some lat/lng coordinates to start with.
+        double lat = 51.5145160;
+        double lng = -0.1270060;
+
+        // Add ten cluster items in close proximity, for purposes of this example.
+        for (int i = 0; i < 30; i++) {
+            double offset = i / 60d;
+            lat = lat + offset;
+            lng = lng + offset;
+            MyPoint offsetItem = new MyPoint(lat, lng);
+            mClusterManager.addItem(offsetItem);
         }
     }
 }
