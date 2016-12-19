@@ -78,7 +78,79 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         setUpClusterer();
+
         mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
+
+        mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
+            @Override
+            public void onPolygonClick(com.google.android.gms.maps.model.Polygon polygon) {
+                mMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
+                polygon.setFillColor(Color.argb(100, 255, 10, 10));
+            }
+        });
+
+        mMap.setOnCameraIdleListener(new GoogleMap.OnCameraIdleListener() {
+            @Override
+            public void onCameraIdle() {
+                mMap.clear();
+                addFromGeoJson();
+                mClusterManager.clearItems();
+                addItems();
+                mClusterManager.cluster();
+
+            }
+        });
+    }
+
+    private void setUpClusterer() {
+        // Position the map.
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(51.503186, -0.126446), 10));
+
+        // Initialize the manager with the context and the map.
+        // (Activity extends context, so we can pass 'this' in the constructor.)
+        mClusterManager = new ClusterManager<>(this, mMap);
+        mClusterManager.setRenderer(new OwnIconRendered(this, mMap, mClusterManager));
+        mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<MyPoint>() {
+            @Override
+            public boolean onClusterItemClick(MyPoint myPoint) {
+                Toast.makeText(MapsActivity.this, myPoint.getMessage(), Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        });
+        mClusterManager.setOnClusterClickListener(new ClusterManager.OnClusterClickListener<MyPoint>() {
+            @Override
+            public boolean onClusterClick(Cluster<MyPoint> cluster) {
+                String messages = "";
+                for (MyPoint myPoint : cluster.getItems()) {
+                    messages += myPoint.getMessage() + "\n";
+                }
+                Toast.makeText(MapsActivity.this, messages, Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        });
+        // Point the map's listeners at the listeners implemented by the cluster
+        // manager.
+        //mMap.setOnCameraIdleListener(mClusterManager);
+        //mMap.setOnMarkerClickListener(mClusterManager);
+    }
+
+    private void addItems() {
+
+        // Set some lat/lng coordinates to start with.
+        double lat = 51.5145160;
+        double lng = -0.1270060;
+
+        // Add ten cluster items in close proximity, for purposes of this example.
+        for (int i = 0; i < 30; i++) {
+            double offset = i / 60d;
+            lat = lat + offset;
+            lng = lng + offset;
+            MyPoint offsetItem = new MyPoint(lat, lng, String.valueOf(offset));
+            mClusterManager.addItem(offsetItem);
+        }
+    }
+
+    private void addFromGeoJson(){
         String geoJsonString =
                 " { \"type\": \"FeatureCollection\",\n" +
                         "    \"features\": [\n" +
@@ -127,64 +199,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         } catch (IOException e) {
             e.printStackTrace();
-        }
-        mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
-            @Override
-            public void onPolygonClick(com.google.android.gms.maps.model.Polygon polygon) {
-                mMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
-                polygon.setFillColor(Color.argb(100, 255, 10, 10));
-            }
-        });
-    }
-
-    private void setUpClusterer() {
-        // Position the map.
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(51.503186, -0.126446), 10));
-
-        // Initialize the manager with the context and the map.
-        // (Activity extends context, so we can pass 'this' in the constructor.)
-        mClusterManager = new ClusterManager<>(this, mMap);
-        mClusterManager.setRenderer(new OwnIconRendered(this, mMap, mClusterManager));
-        mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<MyPoint>() {
-            @Override
-            public boolean onClusterItemClick(MyPoint myPoint) {
-                Toast.makeText(MapsActivity.this, myPoint.getMessage(), Toast.LENGTH_SHORT).show();
-                return false;
-            }
-        });
-        mClusterManager.setOnClusterClickListener(new ClusterManager.OnClusterClickListener<MyPoint>() {
-            @Override
-            public boolean onClusterClick(Cluster<MyPoint> cluster) {
-                String messages = "";
-                for (MyPoint myPoint : cluster.getItems()) {
-                    messages += myPoint.getMessage() + "\n";
-                }
-                Toast.makeText(MapsActivity.this, messages, Toast.LENGTH_SHORT).show();
-                return false;
-            }
-        });
-        // Point the map's listeners at the listeners implemented by the cluster
-        // manager.
-        mMap.setOnCameraIdleListener(mClusterManager);
-        mMap.setOnMarkerClickListener(mClusterManager);
-
-        // Add cluster items (markers) to the cluster manager.
-        addItems();
-    }
-
-    private void addItems() {
-
-        // Set some lat/lng coordinates to start with.
-        double lat = 51.5145160;
-        double lng = -0.1270060;
-
-        // Add ten cluster items in close proximity, for purposes of this example.
-        for (int i = 0; i < 30; i++) {
-            double offset = i / 60d;
-            lat = lat + offset;
-            lng = lng + offset;
-            MyPoint offsetItem = new MyPoint(lat, lng, String.valueOf(offset));
-            mClusterManager.addItem(offsetItem);
         }
     }
 }
