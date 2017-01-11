@@ -1,12 +1,15 @@
 package com.example.sic.googlemapstesting;
 
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
+import android.view.View;
+import android.widget.CheckBox;
+import android.widget.SeekBar;
 import android.widget.Toast;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -15,8 +18,18 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.TileOverlay;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+import com.google.android.gms.maps.model.TileProvider;
+import com.google.android.gms.maps.model.UrlTileProvider;
 import com.google.maps.android.clustering.Cluster;
 import com.google.maps.android.clustering.ClusterManager;
+import com.google.maps.android.geojson.GeoJsonFeature;
+import com.google.maps.android.geojson.GeoJsonLayer;
+import com.google.maps.android.geojson.GeoJsonPoint;
+import com.google.maps.android.geojson.GeoJsonPointStyle;
+import com.google.maps.android.geojson.GeoJsonPolygon;
+import com.google.maps.android.geojson.GeoJsonPolygonStyle;
 
 import org.geojson.Feature;
 import org.geojson.FeatureCollection;
@@ -25,16 +38,34 @@ import org.geojson.LineString;
 import org.geojson.LngLatAlt;
 import org.geojson.Point;
 import org.geojson.Polygon;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SeekBar.OnSeekBarChangeListener {
     // Declare a variable for the cluster manager.
     ClusterManager<MyPoint> mClusterManager;
+    ArrayList<MyPoint> points = new ArrayList<>();
     private GoogleMap mMap;
+    private static final int TRANSPARENCY_MAX = 100;
 
-    public static void handleGeometry(GeoJsonObject object, GoogleMap mMap) {
+    /**
+     * This returns moon tiles.
+     */
+    private static final String MOON_MAP_URL_FORMAT =
+            "http://mw1.google.com/mw-planetary/lunar/lunarmaps_v1/clem_bw/%d/%d/%d.jpg";
+
+    private TileOverlay mMoonTiles;
+    private SeekBar mTransparencyBar;
+
+    public void handleGeometry(GeoJsonObject object) {
         if (object instanceof Polygon) {
             List<LngLatAlt> polygonCoordinates = ((Polygon) object).getExteriorRing();
             PolygonOptions polygonOptions = new PolygonOptions();
@@ -72,42 +103,38 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        mTransparencyBar = (SeekBar) findViewById(R.id.transparencySeekBar);
+        mTransparencyBar.setMax(TRANSPARENCY_MAX);
+        mTransparencyBar.setProgress(0);
+
     }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        setUpClusterer();
+        setupClusterManager();
 
         mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
-
         mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
             @Override
             public void onPolygonClick(com.google.android.gms.maps.model.Polygon polygon) {
-                mMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
-                polygon.setFillColor(Color.argb(100, 255, 10, 10));
+                Toast.makeText(MapsActivity.this, polygon.getClass().getName(), Toast.LENGTH_SHORT).show();
             }
         });
+        addFromGeoJson();
+        addClusterItems();
 
         mMap.setOnCameraIdleListener(new GoogleMap.OnCameraIdleListener() {
             @Override
             public void onCameraIdle() {
-                mMap.clear();
-                addFromGeoJson();
-                mClusterManager.clearItems();
-                addItems();
                 mClusterManager.cluster();
-
             }
         });
+        tileOverlayTest();
     }
 
-    private void setUpClusterer() {
-        // Position the map.
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(51.503186, -0.126446), 10));
-
-        // Initialize the manager with the context and the map.
-        // (Activity extends context, so we can pass 'this' in the constructor.)
+    private void setupClusterManager() {
         mClusterManager = new ClusterManager<>(this, mMap);
         mClusterManager.setRenderer(new OwnIconRendered(this, mMap, mClusterManager));
         mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<MyPoint>() {
@@ -128,13 +155,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 return false;
             }
         });
-        // Point the map's listeners at the listeners implemented by the cluster
-        // manager.
-        //mMap.setOnCameraIdleListener(mClusterManager);
-        //mMap.setOnMarkerClickListener(mClusterManager);
+        mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<MyPoint>() {
+            @Override
+            public boolean onClusterItemClick(MyPoint myPoint) {
+                Toast.makeText(MapsActivity.this, myPoint.getMessage(), Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        });
     }
 
-    private void addItems() {
+    private void addClusterItems() {
 
         // Set some lat/lng coordinates to start with.
         double lat = 51.5145160;
@@ -146,59 +176,95 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             lat = lat + offset;
             lng = lng + offset;
             MyPoint offsetItem = new MyPoint(lat, lng, String.valueOf(offset));
+            points.add(offsetItem);
             mClusterManager.addItem(offsetItem);
         }
     }
 
-    private void addFromGeoJson(){
-        String geoJsonString =
-                " { \"type\": \"FeatureCollection\",\n" +
-                        "    \"features\": [\n" +
-                        "      { \"type\": \"Feature\",\n" +
-                        "        \"geometry\": {\"type\": \"Point\", \"coordinates\": [102.0, 0.5]},\n" +
-                        "        \"properties\": {\"prop0\": \"value0\"}\n" +
-                        "        },\n" +
-                        "      { \"type\": \"Feature\",\n" +
-                        "        \"geometry\": {\n" +
-                        "          \"type\": \"LineString\",\n" +
-                        "          \"coordinates\": [\n" +
-                        "            [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]\n" +
-                        "            ]\n" +
-                        "          },\n" +
-                        "        \"properties\": {\n" +
-                        "          \"prop0\": \"value0\",\n" +
-                        "          \"prop1\": 0.0\n" +
-                        "          }\n" +
-                        "        },\n" +
-                        "      { \"type\": \"Feature\",\n" +
-                        "         \"geometry\": {\n" +
-                        "           \"type\": \"Polygon\",\n" +
-                        "           \"coordinates\": [\n" +
-                        "             [ [100.0, 0.0], [101.0, 0.0], [101.0, 1.0],\n" +
-                        "               [100.0, 1.0], [100.0, 0.0] ]\n" +
-                        "             ]\n" +
-                        "         },\n" +
-                        "         \"properties\": {\n" +
-                        "           \"prop0\": \"value0\",\n" +
-                        "           \"prop1\": {\"this\": \"that\"}\n" +
-                        "           }\n" +
-                        "         }\n" +
-                        "       ]\n" +
-                        "     }";
+    private void addFromGeoJson() {
+        try {
+            JSONObject jsonObject = new JSONObject(Constants.google);
+            GeoJsonLayer geoJsonLayer = new GeoJsonLayer(mMap, jsonObject);
+            for (GeoJsonFeature feature : geoJsonLayer.getFeatures()) {
+                if (feature.getGeometry() instanceof GeoJsonPolygon) {
+                    GeoJsonPolygonStyle style = new GeoJsonPolygonStyle();
+                    style.setFillColor(Color.BLUE);
+                    feature.setPolygonStyle(style);
+                }
+                if (feature.getGeometry() instanceof GeoJsonPoint) {
+                    GeoJsonPointStyle style = new GeoJsonPointStyle();
+                    feature.setPointStyle(style);
+                }
+            }
+            geoJsonLayer.setOnFeatureClickListener(new GeoJsonLayer.GeoJsonOnFeatureClickListener() {
+                @Override
+                public void onFeatureClick(GeoJsonFeature geoJsonFeature) {
+                    if (geoJsonFeature != null) {
+                        Toast.makeText(MapsActivity.this, geoJsonFeature.getGeometry().getType(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+            geoJsonLayer.addLayerToMap();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
 
         try {
-            GeoJsonObject geoJsonObject = new ObjectMapper().readValue(geoJsonString, GeoJsonObject.class);
+            GeoJsonObject geoJsonObject = new ObjectMapper().readValue(Constants.geoJsonString, GeoJsonObject.class);
             if (geoJsonObject instanceof FeatureCollection) {
                 List<Feature> features = ((FeatureCollection) geoJsonObject).getFeatures();
                 for (Feature feature : features) {
                     GeoJsonObject object = feature.getGeometry();
-                    handleGeometry(object, mMap);
+                    handleGeometry(object);
                 }
-            } else {
-                handleGeometry(geoJsonObject, mMap);
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+
+    }
+
+    private void tileOverlayTest() {
+        TileProvider tileProvider = new UrlTileProvider(256, 256) {
+            @Override
+            public synchronized URL getTileUrl(int x, int y, int zoom) {
+                // The moon tile coordinate system is reversed.  This is not normal.
+                int reversedY = (1 << zoom) - y - 1;
+                String s = String.format(Locale.US, MOON_MAP_URL_FORMAT, zoom, x, reversedY);
+                System.out.println(s);
+                URL url = null;
+                try {
+                    url = new URL(s);
+                } catch (MalformedURLException e) {
+                    throw new AssertionError(e);
+                }
+                return url;
+            }
+        };
+
+        mMoonTiles = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(tileProvider));
+        mTransparencyBar.setOnSeekBarChangeListener(this);
+    }
+
+    public void setFadeIn(View v) {
+        if (mMoonTiles == null) {
+            return;
+        }
+        mMoonTiles.setFadeIn(((CheckBox) v).isChecked());
+    }
+
+    @Override
+    public void onStopTrackingTouch(SeekBar seekBar) {
+    }
+
+    @Override
+    public void onStartTrackingTouch(SeekBar seekBar) {
+    }
+
+    @Override
+    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+        if (mMoonTiles != null) {
+            mMoonTiles.setTransparency((float) progress / (float) TRANSPARENCY_MAX);
         }
     }
 }
