@@ -73,6 +73,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             polygonOptions.strokeColor(Color.argb(100, 255, 10, 10));
             polygonOptions.fillColor(Color.argb(40, 255, 10, 10));
             polygonOptions.clickable(true);
+            polygonOptions.zIndex(1);
             for (LngLatAlt coordinate : polygonCoordinates) {
                 polygonOptions.add(new LatLng(coordinate.getLatitude(), coordinate.getLongitude()));
             }
@@ -82,6 +83,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             PolylineOptions polyLineOptions = new PolylineOptions();
             polyLineOptions.width(2);
             polyLineOptions.color(Color.argb(100, 255, 0, 10));
+            polyLineOptions.zIndex(1);
             for (LngLatAlt coordinate : lineCoordinates) {
                 polyLineOptions.add(new LatLng(coordinate.getLatitude(), coordinate.getLongitude()));
             }
@@ -241,8 +243,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 return url;
             }
         };
-
-        mMoonTiles = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(tileProvider));
+        TileOverlayOptions tileOverlay = new TileOverlayOptions().tileProvider(tileProvider);
+        tileOverlay.zIndex(0);
+        mMoonTiles = mMap.addTileOverlay(tileOverlay);
         mTransparencyBar.setOnSeekBarChangeListener(this);
     }
 
