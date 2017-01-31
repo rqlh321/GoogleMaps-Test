@@ -8,9 +8,10 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.geom.GeometryCollection;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
+
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
     GeometryFactory geometryFactory = new GeometryFactory();
@@ -28,12 +29,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         Geometry fullPolygon = Utils.getGeometry(Constants.TEST_POLYGON);
-        Geometry dividedByX = divideByX(fullPolygon);
-        for (int i = 0; i < dividedByX.getNumGeometries(); i++) {
-            Geometry geometry = dividedByX.getGeometryN(i);
-            Geometry dividedByY = divideByY(geometry);
-            System.out.print(dividedByY.getNumGeometries());
-            Utils.handlePolygon(googleMap, dividedByY);
+
+        CopyOnWriteArrayList<Geometry> geometries = divide(fullPolygon);
+
+        for (Geometry geometry : geometries) {
+            Utils.handlePolygon(googleMap, geometry);
         }
     }
 
@@ -61,5 +61,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
 
         return Utils.splitPolygon(geometry, xLine.getGeometryN(0));
+    }
+
+    private CopyOnWriteArrayList<Geometry> divide(Geometry fullPolygon) {
+        CopyOnWriteArrayList<Geometry> geometries = new CopyOnWriteArrayList<>();
+        geometries.add(fullPolygon);
+
+        Coordinate borderPoint = fullPolygon.getCoordinate();
+        Coordinate centerPoint = fullPolygon.getCentroid().getCoordinate();
+        double weight = Math.abs(borderPoint.x - centerPoint.x) * 2;
+        long roundedWeigh = Math.round(weight);
+        double count = Math.pow(2, (int) roundedWeigh / 2);
+
+        while (geometries.size() < count) {
+            for (Geometry polygon : geometries) {
+                Geometry dividedByX = divideByX(polygon);
+                geometries.remove(polygon);
+                for (int i = 0; i < dividedByX.getNumGeometries(); i++) {
+                    Geometry geometry = dividedByX.getGeometryN(i);
+                    Geometry dividedByY = divideByY(geometry);
+                    for (int j = 0; j < dividedByY.getNumGeometries(); j++) {
+                        geometries.add(dividedByY.getGeometryN(j));
+                    }
+                }
+            }
+        }
+        return geometries;
     }
 }
