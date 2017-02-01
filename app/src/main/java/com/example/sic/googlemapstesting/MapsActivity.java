@@ -3,6 +3,7 @@ package com.example.sic.googlemapstesting;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v4.app.FragmentActivity;
 import android.view.View;
 import android.widget.CheckBox;
@@ -10,6 +11,8 @@ import android.widget.SeekBar;
 import android.widget.Toast;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -133,7 +136,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mClusterManager.cluster();
             }
         });
-        tileOverlayTest();
+        mMap.addTileOverlay(new TileOverlayOptions().tileProvider(new CustomMapTileProvider(getResources().getAssets())));
+
     }
 
     private void setupClusterManager() {
@@ -231,12 +235,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public synchronized URL getTileUrl(int x, int y, int zoom) {
                 // The moon tile coordinate system is reversed.  This is not normal.
-                int reversedY = (1 << zoom) - y - 1;
+/*                int reversedY = (1 << zoom) - y - 1;
                 String s = String.format(Locale.US, MOON_MAP_URL_FORMAT, zoom, x, reversedY);
-                System.out.println(s);
+                System.out.println(s);*/
                 URL url = null;
+                String urlString = "file:/" + Environment.getExternalStorageDirectory().getPath() + "/Download/0.jpg";
+
                 try {
-                    url = new URL(s);
+                    url = new URL(urlString);
                 } catch (MalformedURLException e) {
                     throw new AssertionError(e);
                 }
@@ -270,4 +276,5 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMoonTiles.setTransparency((float) progress / (float) TRANSPARENCY_MAX);
         }
     }
+
 }
