@@ -7,7 +7,6 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.geom.GeometryFactory;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -26,12 +25,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         Geometry fullPolygon = Utils.getGeometry(Constants.TEST_POLYGON);
+        CopyOnWriteArrayList<Geometry> divideList = Utils.divide(fullPolygon);
+        CopyOnWriteArrayList<Geometry> gluedList = Utils.gluePolygons(divideList);
+        Utils.handlePolygon(googleMap, gluedList);
 
-        CopyOnWriteArrayList<Geometry> geometries = Utils.divide(fullPolygon);
-
-        for (Geometry geometry : geometries) {
+        /*for (Geometry geometry : divideList) {
             Utils.handlePolygon(googleMap, geometry);
-        }
+        }*/
+
     }
 
 }

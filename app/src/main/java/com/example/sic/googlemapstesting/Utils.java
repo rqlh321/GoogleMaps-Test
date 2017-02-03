@@ -1,5 +1,7 @@
 package com.example.sic.googlemapstesting;
 
+import android.util.Log;
+
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -40,15 +42,17 @@ public class Utils {
         googleMap.addMarker(point);
     }
 
-    public static void handlePolygon(GoogleMap googleMap, Geometry geometry) {
-        Coordinate[] coordinates = geometry.getCoordinates();
-        PolygonOptions polygonOptions = new PolygonOptions();
-        polygonOptions.strokeWidth(3);
-        for (Coordinate coordinate : coordinates) {
-            LatLng latLng = new LatLng(coordinate.y, coordinate.x);
-            polygonOptions.add(latLng);
+    public static void handlePolygon(GoogleMap googleMap, CopyOnWriteArrayList<Geometry> geometryList) {
+        for (Geometry geometry : geometryList) {
+            Coordinate[] coordinates = geometry.getCoordinates();
+            PolygonOptions polygonOptions = new PolygonOptions();
+            polygonOptions.strokeWidth(3);
+            for (Coordinate coordinate : coordinates) {
+                LatLng latLng = new LatLng(coordinate.y, coordinate.x);
+                polygonOptions.add(latLng);
+            }
+            googleMap.addPolygon(polygonOptions);
         }
-        googleMap.addPolygon(polygonOptions);
     }
 
     public static Geometry getGeometry(String string) {
@@ -136,5 +140,33 @@ public class Utils {
             }
         }
         return geometries;
+    }
+
+    public static CopyOnWriteArrayList<Geometry> gluePolygons(CopyOnWriteArrayList<Geometry> polygonList) {
+        boolean unite = true;
+        if (polygonList.size() > 1) {
+            while (unite) {
+                unite = false;
+                for (Geometry cmp : polygonList) {
+                    for (Geometry next : polygonList) {
+                        if (!next.equals(cmp)) {
+                            if (cmp.contains(next) || next.contains(cmp) || next.intersects(cmp)) {
+                                try {
+                                    Geometry union = cmp.union(next);
+                                    Polygon polygon = geometryFactory.createPolygon(union.getCoordinates());
+                                    polygonList.add(0, polygon);
+                                    polygonList.remove(next);
+                                    polygonList.remove(cmp);
+                                    unite = true;
+                                } catch (IllegalArgumentException e) {
+                                    Log.d(Utils.class.getSimpleName(), e.getMessage(), e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return polygonList;
     }
 }
