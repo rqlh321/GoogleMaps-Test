@@ -8,6 +8,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.vividsolutions.jts.geom.Geometry;
 
+import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -24,15 +25,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        Geometry fullPolygon = Utils.getGeometry(Constants.TEST_POLYGON);
-        CopyOnWriteArrayList<Geometry> divideList = Utils.divide(fullPolygon);
-        CopyOnWriteArrayList<Geometry> gluedList = Utils.gluePolygons(divideList);
-        Utils.handlePolygon(googleMap, gluedList);
+        ArrayList<Geometry> ring = new ArrayList<>();
+        ring.add(Utils.getGeometry(Constants.TOP));
+        ring.add(Utils.getGeometry(Constants.RIGHT));
+        ring.add(Utils.getGeometry(Constants.BOTTOM));
+        ring.add(Utils.getGeometry(Constants.LEFT));
+        ring.add(Utils.getGeometry(Constants.CENTER));
 
-        /*for (Geometry geometry : divideList) {
-            Utils.handlePolygon(googleMap, geometry);
-        }*/
-
+        ArrayList<Geometry> fullRing = Utils.glue(ring);
+        Utils.handlePolygon(googleMap, fullRing);
     }
 
 }

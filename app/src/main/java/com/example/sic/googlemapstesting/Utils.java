@@ -1,7 +1,5 @@
 package com.example.sic.googlemapstesting;
 
-import android.util.Log;
-
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -42,7 +40,7 @@ public class Utils {
         googleMap.addMarker(point);
     }
 
-    public static void handlePolygon(GoogleMap googleMap, CopyOnWriteArrayList<Geometry> geometryList) {
+    public static void handlePolygon(GoogleMap googleMap, ArrayList<Geometry> geometryList) {
         for (Geometry geometry : geometryList) {
             Coordinate[] coordinates = geometry.getCoordinates();
             PolygonOptions polygonOptions = new PolygonOptions();
@@ -142,31 +140,24 @@ public class Utils {
         return geometries;
     }
 
-    public static CopyOnWriteArrayList<Geometry> gluePolygons(CopyOnWriteArrayList<Geometry> polygonList) {
+    public static ArrayList<Geometry> glue(ArrayList<Geometry> geometries) {
         boolean unite = true;
-        if (polygonList.size() > 1) {
-            while (unite) {
-                unite = false;
-                for (Geometry cmp : polygonList) {
-                    for (Geometry next : polygonList) {
-                        if (!next.equals(cmp)) {
-                            if (cmp.contains(next) || next.contains(cmp) || next.intersects(cmp)) {
-                                try {
-                                    Geometry union = cmp.union(next);
-                                    Polygon polygon = geometryFactory.createPolygon(union.getCoordinates());
-                                    polygonList.add(0, polygon);
-                                    polygonList.remove(next);
-                                    polygonList.remove(cmp);
-                                    unite = true;
-                                } catch (IllegalArgumentException e) {
-                                    Log.d(Utils.class.getSimpleName(), e.getMessage(), e);
-                                }
-                            }
-                        }
+        while (unite) {
+            unite = false;
+            for (int i = 0; i < geometries.size(); i++) {
+                Geometry cmp = geometries.get(i);
+                for (int j = 1; j < geometries.size(); j++) {
+                    Geometry next = geometries.get(j);
+                    if (cmp.contains(next) || next.contains(cmp) || next.intersects(cmp)) {
+                        Geometry union = cmp.union(next);
+                        geometries.add(0, union);
+                        geometries.remove(next);
+                        geometries.remove(cmp);
+                        unite = true;
                     }
                 }
             }
         }
-        return polygonList;
+        return geometries;
     }
 }
