@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/GoogleMaps-Test.iml" filepath="$PROJECT_DIR$/GoogleMaps-Test.iml" />
       <module fileurl="file://$PROJECT_DIR$/GoogleMapsTesting.iml" filepath="$PROJECT_DIR$/GoogleMapsTesting.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
