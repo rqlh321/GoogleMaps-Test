@@ -3,4 +3,7 @@
     <string name="title_activity_maps">Map</string>
     <string name="transparency">прозрачность</string>
     <string name="fade_in">приблизить</string>
+    <string name="title">Select a File</string>
+    <string name="error_file_select">Please install a File Manager.</string>
+    <string name="error_file">File not found</string>
 </resources>
